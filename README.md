@@ -1,5 +1,7 @@
 # 中国司法统计数据平台（1949—1999）
 
+**在线访问：<https://realnut.github.io/china-judicial-statistics/>**
+
 基于公开出版物 OCR 文本整理的结构化司法统计数据，提供**只读检索、动态图表、表格导出**。
 
 ## 站点结构
@@ -27,18 +29,18 @@ python3 -m http.server 8000
 
 ## 部署到 GitHub Pages
 
+本仓库已开启 Pages（分支 `main` / 根目录），推送后自动发布。
+
 ```bash
 git init && git add . && git commit -m "司法统计数据平台"
 git branch -M main
-git remote add origin git@github.com:<用户名>/<仓库名>.git
+git remote add origin git@github.com:RealNut/china-judicial-statistics.git
 git push -u origin main
 ```
 
-随后在仓库 **Settings → Pages → Build and deployment**：
-- Source 选 `Deploy from a branch`
-- Branch 选 `main` / 根目录 `/`（若站点放在子目录则选 `/docs` 并把文件移入）
-
-保存后即可通过 `https://<用户名>.github.io/<仓库名>/` 访问。
+若需重新开启：仓库 **Settings → Pages → Build and deployment**，
+Source 选 `Deploy from a branch`，Branch 选 `main` / 根目录 `/`。
+保存后通过 `https://realnut.github.io/china-judicial-statistics/` 访问。
 
 ## 数据只读性如何保证
 
