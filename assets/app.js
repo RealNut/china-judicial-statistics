@@ -1,6 +1,6 @@
 /* 中国司法统计数据平台 —— 纯前端只读检索与可视化
    数据来自 data/*.json（静态文件），站点不含任何写入接口。 */
-const F = { 年份: 0, 机关: 1, 大类: 2, 审级: 3, 表: 4, 项目: 5, 指标: 6, 数值: 7, 单位: 8, 合计: 9, 来源: 10, 表序: 11, 页: 12 };
+const F = { 年份: 0, 机关: 1, 大类: 2, 审级: 3, 表: 4, 项目: 5, 指标: 6, 数值: 7, 单位: 8, 合计: 9, 来源: 10, 表序: 11, 页: 12, 质量: 13 };
 
 let DATA = null, TABLES = null, ISSUES = null;
 let filtered = [];
@@ -10,6 +10,23 @@ let chart = null;
 
 const $ = id => document.getElementById(id);
 const dec = (k, i) => (DATA.dict[k] && DATA.dict[k][i] !== undefined ? DATA.dict[k][i] : "");
+
+/* 质量标志：完整文字 → 徽标短文本与配色 */
+function qshort(i) {
+  const s = dec("q", i);
+  if (!s) return "—";
+  if (s.startsWith("完好")) return "完好";
+  if (s.startsWith("已重建")) return "已重建";
+  if (s.startsWith("结构存疑")) return "存疑";
+  return s.slice(0, 4);
+}
+function qcls(i) {
+  const s = dec("q", i);
+  if (s.startsWith("完好")) return "qm qm-ok";
+  if (s.startsWith("已重建")) return "qm qm-fix";
+  if (s.startsWith("结构存疑")) return "qm qm-warn";
+  return "qm";
+}
 
 async function boot() {
   const [ds, tb, is, mf] = await Promise.all([
@@ -74,6 +91,7 @@ function buildFilters() {
   chips("f-lvl", "lvl", unique(F.审级));
   chips("f-ind", "ind", unique(F.指标));
   chips("f-proj", "proj", unique(F.项目));
+  chips("f-q", "q", unique(F.质量));
   // 默认仅勾选"法院"：各机关指标单位不同（人口/案件/火灾损失），
   // 全部勾选会让首屏图表因量级差异失去可读性；用户可自行勾选其他机关。
   for (const c of $("f-org").querySelectorAll(".chip")) {
@@ -103,11 +121,12 @@ function apply() {
   const org = new Set(selected("f-org")), cat = new Set(selected("f-cat"));
   const lvl = new Set(selected("f-lvl")), ind = new Set(selected("f-ind"));
   const proj = new Set(selected("f-proj"));
+  const q = new Set(selected("f-q"));
   const excl = $("f-excl-total").checked;
   filtered = DATA.rows.filter(r =>
     r[F.年份] >= y1 && r[F.年份] <= y2 &&
     org.has(r[F.机关]) && cat.has(r[F.大类]) && lvl.has(r[F.审级]) &&
-    ind.has(r[F.指标]) && proj.has(r[F.项目]) &&
+    ind.has(r[F.指标]) && proj.has(r[F.项目]) && q.has(r[F.质量]) &&
     (!excl || r[F.合计] === 0) &&
     r[F.数值] !== null && r[F.数值] !== undefined
   );
@@ -172,7 +191,8 @@ function renderTable() {
     <td>${r[F.年份]}</td><td>${dec("org", r[F.机关])}</td><td>${dec("cat", r[F.大类])}</td>
     <td>${dec("lvl", r[F.审级]) || "—"}</td><td>${dec("proj", r[F.项目])}</td>
     <td>${dec("ind", r[F.指标])}</td><td class="num">${Number(r[F.数值]).toLocaleString()}</td>
-    <td>${dec("unit", r[F.单位])}</td><td title="${dec("tbl", r[F.表]).replace(/"/g, "")}">${dec("tbl", r[F.表]).slice(0, 26)}</td>
+    <td>${dec("unit", r[F.单位])}</td><td class="${qcls(r[F.质量])}" title="${dec("q", r[F.质量])}">${qshort(r[F.质量])}</td>
+    <td title="${dec("tbl", r[F.表]).replace(/"/g, "")}">${dec("tbl", r[F.表]).slice(0, 26)}</td>
     <td>${dec("src", r[F.来源])}</td></tr>`).join("");
   $("pg-info").textContent = `第 ${start + 1}–${Math.min(start + pageSize, filtered.length)} 条 / 共 ${filtered.length.toLocaleString()} 条`;
   $("pg-prev").disabled = page <= 1;
@@ -182,16 +202,16 @@ function renderTable() {
 function exportCSV(full) {
   const head = full
     ? ["年份", "来源机关", "统计大类", "审级", "项目", "指标", "数值", "单位",
-       "是否合计项", "统计表", "来源编号", "表序号", "书页"]
-    : ["年份", "来源机关", "统计大类", "审级", "项目", "指标", "数值", "单位", "统计表", "来源编号"];
+       "是否合计项", "统计表", "来源编号", "表序号", "书页", "质量标志"]
+    : ["年份", "来源机关", "统计大类", "审级", "项目", "指标", "数值", "单位", "统计表", "来源编号", "质量标志"];
   const lines = [head.join(",")];
   for (const r of filtered) {
     const base = [r[F.年份], dec("org", r[F.机关]), dec("cat", r[F.大类]),
       dec("lvl", r[F.审级]), dec("proj", r[F.项目]), dec("ind", r[F.指标]),
       r[F.数值], dec("unit", r[F.单位])];
     const tail = full
-      ? [r[F.合计] ? "是" : "", dec("tbl", r[F.表]), dec("src", r[F.来源]), r[F.表序], r[F.页] || ""]
-      : [dec("tbl", r[F.表]), dec("src", r[F.来源])];
+      ? [r[F.合计] ? "是" : "", dec("tbl", r[F.表]), dec("src", r[F.来源]), r[F.表序], r[F.页] || "", dec("q", r[F.质量])]
+      : [dec("tbl", r[F.表]), dec("src", r[F.来源]), dec("q", r[F.质量])];
     lines.push([...base, ...tail].map(csv).join(","));
   }
   const blob = new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
@@ -235,14 +255,17 @@ function buildTableFilters() {
   const yrs = [...new Set(TABLES.map(t => t.y1))].filter(Boolean).sort((a, b) => a - b);
   $("tbl-org").innerHTML += orgs.map(o => `<option>${o}</option>`).join("");
   $("tbl-year").innerHTML += yrs.map(y => `<option value="${y}">${y}</option>`).join("");
-  ["tbl-q", "tbl-org", "tbl-year"].forEach(id => $(id).oninput = () => { tPage = 1; renderTables(); });
+  const qf = [...new Set(TABLES.map(t => t.q).filter(Boolean))];
+  $("tbl-q-flag").innerHTML += qf.map(q => `<option value="${q}">${q}</option>`).join("");
+  ["tbl-q", "tbl-org", "tbl-year", "tbl-q-flag"].forEach(id => $(id).oninput = () => { tPage = 1; renderTables(); });
   $("tp-prev").onclick = () => { if (tPage > 1) { tPage--; renderTables(); } };
   $("tp-next").onclick = () => { if (tPage * 50 < tblFiltered().length) { tPage++; renderTables(); } };
 }
 function tblFiltered() {
   const q = $("tbl-q").value.trim(), o = $("tbl-org").value, y = $("tbl-year").value;
+  const qflag = $("tbl-q-flag").value;
   return TABLES.filter(t =>
-    (!o || t.o === o) && (!y || String(t.y1) === y) &&
+    (!o || t.o === o) && (!y || String(t.y1) === y) && (!qflag || t.q === qflag) &&
     (!q || (t.t || "").includes(q) || (t.c || "").includes(q) || (t.o || "").includes(q))
   ).sort((a, b) => (a.y1 || 0) - (b.y1 || 0) || (a.n || 0) - (b.n || 0));
 }
@@ -251,7 +274,10 @@ function renderTables() {
   $("tbl-table").querySelector("tbody").innerHTML = rows.slice(start, start + 50).map(t => `<tr>
     <td>${t.y1 || "—"}${t.y2 && t.y2 !== t.y1 ? "–" + t.y2 : ""}</td><td>${t.o}</td><td>${t.c}</td>
     <td>${t.l || "—"}</td><td title="${(t.t || "").replace(/"/g, "")}">${(t.t || "").slice(0, 40)}</td>
-    <td>${t.u || "—"}</td><td class="num">${t.nr}</td><td class="num">${t.nc}</td><td>${t.p || "—"}</td>
+    <td class="num">${t.nr}</td><td class="num">${t.nc}</td>
+    <td class="${t.q && t.q.startsWith("完好") ? "qm qm-ok" : t.q && t.q.startsWith("已重建") ? "qm qm-fix" : "qm qm-warn"}"
+        title="${t.q || ""}">${t.q ? (t.q.startsWith("完好") ? "完好" : t.q.startsWith("已重建") ? "已重建" : "存疑") : "—"}</td>
+    <td>${t.p || "—"}</td>
     <td>${t.s.replace("CHINA_LAW_YEARBOOK_", "年鉴").replace("SPC_HIST_1949_1998", "最高法汇编")}</td></tr>`).join("");
   $("tp-info").textContent = `第 ${start + 1}–${Math.min(start + 50, rows.length)} 张 / 共 ${rows.length} 张`;
 }

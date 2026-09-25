@@ -74,3 +74,8 @@ tbody tr:hover{background:#f8fbff}
 .foot{padding:18px;color:var(--ink2);font-size:12px;text-align:center}
 code{background:var(--soft);padding:1px 5px;border-radius:4px;font-size:12px}
 .loading{padding:40px;text-align:center;color:var(--ink2)}
+/* 数据质量徽标 */
+.qm{padding:1px 7px;border-radius:9px;font-size:11px;white-space:nowrap;cursor:help}
+.qm-ok{background:#eaf6ec;color:#2c6b3a}
+.qm-fix{background:#e8f1fa;color:#1F4E79}
+.qm-warn{background:#fff6e0;color:#8a6100}

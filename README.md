@@ -10,12 +10,22 @@
 index.html              页面（数据检索 / 数据源 / 口径疑点 / 关于）
 assets/style.css        样式
 assets/app.js           前端逻辑（原生 JS + Chart.js CDN）
-data/dataset.json       主数据（字典编码 + 数组记录，2.7 MB，gzip 后约 350 KB）
-data/tables.json        原书统计表目录（534 张）
+data/dataset.json       主数据（字典编码 + 数组记录，2.6 MB，gzip 后约 340 KB）
+data/tables.json        原书统计表目录（518 张逻辑表，含数据质量标志）
 data/issues.json        统计口径疑点清单
 data/manifest.json      数据文件的字节数与 SHA-256（用于验证数据未被修改）
 .nojekyll               禁用 Jekyll，保证 GitHub Pages 原样发布
 ```
+
+## 数据质量标志
+
+每一条记录都带 `质量标志`，可在站点「数据检索」页按质量筛选，也可在「数据源」页按质量过滤表目录：
+
+| 标志 | 含义 | 用法 |
+|---|---|---|
+| 完好 | 表结构完整、列名齐备 | 可直接引用 |
+| 已重建（横向拼接 / 纵向续表） | 跨页宽表已按页自动拼回 | 建议抽查后引用 |
+| 结构存疑（列名残缺 / 无项目列 / 表头含数值） | 跨页导致列错位，数值仍在但列名可能不对应 | **引用前须回原书核对** |
 
 ## 本地预览
 

@@ -61,6 +61,12 @@
           <label>合计行</label>
           <label class="cb"><input type="checkbox" id="f-excl-total" checked> 排除表内“合计 / 小计”行（推荐，避免重复计数）</label>
         </div>
+        <div class="frow">
+          <label>数据质量</label>
+          <div class="chips" id="f-q"></div>
+          <p class="note">“完好”= 表结构完整可直接用；“已重建”= 跨页表已自动拼回，建议抽查；
+            “结构存疑”= 原书跨页导致列名残缺或项目列缺失，数值仍在但列名可能错位，<strong>引用前请回原书核对</strong>。</p>
+        </div>
         <div class="frow actions">
           <button id="btn-apply" class="primary">应用筛选</button>
           <button id="btn-reset">重置</button>
@@ -110,7 +116,7 @@
         <table id="data-table">
           <thead><tr>
             <th>年份</th><th>来源机关</th><th>统计大类</th><th>审级</th>
-            <th>项目</th><th>指标</th><th class="num">数值</th><th>单位</th><th>统计表</th><th>来源</th>
+            <th>项目</th><th>指标</th><th class="num">数值</th><th>单位</th><th>质量</th><th>统计表</th><th>来源</th>
           </tr></thead>
           <tbody></tbody>
         </table>
@@ -141,12 +147,13 @@
         <input type="search" id="tbl-q" placeholder="搜索表标题 / 类别 / 机关">
         <select id="tbl-org"><option value="">全部机关</option></select>
         <select id="tbl-year"><option value="">全部年份</option></select>
+        <select id="tbl-q-flag"><option value="">全部质量</option></select>
       </div>
       <div class="table-scroll tall">
         <table id="tbl-table">
           <thead><tr>
             <th>年份</th><th>机关</th><th>类别</th><th>审级</th><th>表标题</th>
-            <th>单位</th><th class="num">行数</th><th class="num">列数</th><th>页</th><th>来源</th>
+            <th class="num">行数</th><th class="num">列数</th><th>质量</th><th>页</th><th>来源</th>
           </tr></thead>
           <tbody></tbody>
         </table>
