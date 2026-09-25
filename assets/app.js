@@ -36,7 +36,7 @@ async function boot() {
     fetch("data/manifest.json").then(r => r.json()).catch(() => null),
   ]);
   DATA = ds; TABLES = tb; ISSUES = is;
-  $("badge-count").textContent = `${ds.rows.length.toLocaleString()} 条记录 · ${ds.dict.cat.length} 个类别 · 1950—1999`;
+  $("badge-count").textContent = `${ds.rows.length.toLocaleString()} 条记录 · ${ds.dict.cat.length} 个类别 · ${TABLES.length} 张原书统计表`;
   if (mf && mf["文件"] && mf["文件"]["dataset.json"]) {
     $("badge-hash").textContent = "🔒 只读数据 · SHA-256 " + mf["文件"]["dataset.json"].sha256.slice(0, 12) + "…";
     $("badge-hash").title = "dataset.json 的 SHA-256：" + mf["文件"]["dataset.json"].sha256;
@@ -227,21 +227,36 @@ function csv(v) {
 
 /* ---------- 数据源 ---------- */
 function buildSources(mf) {
+  // 固定书目信息；2000—2010 各卷结构相同，按年份动态生成
   const meta = {
     SPC_HIST_1949_1998: ["全国人民法院司法统计历史资料汇编（1949～1998）",
       "最高人民法院研究室 编；主编 杨润时 · 人民法院出版社 2000 年",
       "1950—1998 · 民事、经济纠纷、行政、海事海商、交通运输案件；执行、来信来访、综合治理、赔偿、督促与公示催告程序"],
-    CHINA_LAW_YEARBOOK_1998: ["中国法律年鉴（1998 年卷）· 第十三部分 统计资料",
+    CHINA_LAW_YEARBOOK_1998: ["中国法律年鉴（1998 年卷）· 统计资料",
       "中国法律年鉴社 编 · 1999 年", "1998 · 审判、检察、公安、司法行政、民政五大系统"],
-    CHINA_LAW_YEARBOOK_1999: ["中国法律年鉴（1999 年卷）· 第十三部分 统计资料",
+    CHINA_LAW_YEARBOOK_1999: ["中国法律年鉴（1999 年卷）· 统计资料",
       "中国法律年鉴社 编 · 2000 年", "1999 · 审判、检察、公安、司法行政、民政五大系统"],
   };
   const cnt = {};
   for (const t of TABLES) cnt[t.s] = (cnt[t.s] || 0) + 1;
+  const keys = [...new Set(TABLES.map(t => t.s))].sort((a, b) => {
+    const ya = (a.match(/(\d{4})$/) || [])[1] || "0";
+    const yb = (b.match(/(\d{4})$/) || [])[1] || "0";
+    return (a === "SPC_HIST_1949_1998" ? -1 : b === "SPC_HIST_1949_1998" ? 1 : ya - yb);
+  });
   let html = "";
-  for (const k in meta) {
-    html += `<div class="src"><h3>${meta[k][0]}</h3><p>${meta[k][1]}</p>
-      <p>${meta[k][2]}</p><p>本平台收录：${cnt[k] || 0} 张统计表</p></div>`;
+  for (const k of keys) {
+    let name, pub, scope;
+    if (meta[k]) {
+      [name, pub, scope] = meta[k];
+    } else {
+      const y = (k.match(/(\d{4})$/) || [])[1];
+      name = `中国法律年鉴（${y} 年卷）· 统计资料`;
+      pub = "中国法律年鉴社 编";
+      scope = `${y} · 审判、检察、公安、司法行政、民政等系统（2000 年起民事含原经济纠纷）`;
+    }
+    html += `<div class="src"><h3>${name}</h3><p>${pub}</p>
+      <p>${scope}</p><p>本平台收录：${cnt[k] || 0} 张统计表</p></div>`;
   }
   if (mf) html += `<div class="src"><h3>数据完整性</h3><p>生成时间：${mf["生成时间"]}　记录数：${mf["记录数"]}</p>
     ${Object.entries(mf["文件"]).map(([f, v]) => `<p><code>${f}</code> ${(v.bytes / 1048576).toFixed(2)} MB · SHA-256 <code>${v.sha256}</code></p>`).join("")}
@@ -294,8 +309,15 @@ function buildNotes() {
   这些年份之前并非数值为 0，而是“未单列统计”。</p>
   <p><strong>单位。</strong>“件 / 人 / 个”不可混用相加；来信来访表以“件（人）”混合计数（来信按件、来访按人）。
   部分表为复合单位（如“万公顷、万人次、亿元”），本平台以单列表示，需按列名判别。</p>
-  <p><strong>2000 年前后不可直接衔接。</strong>2000 年起最高人民法院将“经济纠纷”并入“民事”（大民事格局），
-  因此本平台 1999 年之前的“民事”与 2000 年后的“民事”口径不同：跨 2000 年比较时应先合并 民事 + 经济纠纷。</p>`;
+  <p><strong>2000 年前后口径断裂（重要）。</strong>2000 年起最高人民法院将“经济纠纷”并入“民事”（大民事格局），
+  因此 2000 年前的“民事”不含经济纠纷，之后的“民事”包含原经济纠纷。
+  <strong>跨 2000 年做趋势比较时，2000 年前须取“民事 + 经济纠纷”之和</strong>，否则会出现虚假跃升。
+  本平台已收录 2000—2010 年数据，可在同一张图上直接观察该口径切换点。</p>
+  <p><strong>2006 年起表式变化。</strong>2006 年以后年鉴改用“指标”作首列、案件类别作行名的表式；
+  本平台已按同一长表结构规范化，与早期表式可直接合并。个别年份首列被 OCR 漏读，
+  其合计行由“分项加总校验”推断得出，已在表目录中标注为「结构存疑（行名缺失）」。</p>
+  <p><strong>1998 年前的刑事数据。</strong>最高人民法院汇编第二册不含刑事案件，
+  1998 年前的刑事数据仅来自《中国法律年鉴》，无第二来源可校验。</p>`;
 }
 function buildIssues() {
   $("iss-count").textContent = ISSUES.length;
