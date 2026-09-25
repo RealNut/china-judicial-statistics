@@ -271,7 +271,7 @@ function renderSrcTables(det, sid) {
     tbody.innerHTML = list.map(t => `<tr>
       <td>${t.y1 || "—"}${t.y2 && t.y2 !== t.y1 ? "–" + t.y2 : ""}</td>
       <td>${t.c}</td><td>${t.l || "—"}</td>
-      <td title="${(t.t || "").replace(/"/g, "")}">${t.t || "—"}</td>
+      <td title="${(t.t || "").replace(/"/g, "")}"><a class="tlink" href="table.html?t=${t.s}__${t.n}" target="_blank" rel="noopener">${t.t || "—"} ↗</a></td>
       <td class="num">${t.nr}</td><td class="num">${t.nc}</td><td>${qBadge(t.q)}</td>
       <td>${t.p || "—"}</td><td class="num">${t.ln || "—"}</td></tr>`).join("");
     hint.textContent = `共 ${list.length} 张` + (activeYear ? ` · ${activeYear} 年` : "");
@@ -366,7 +366,7 @@ function renderTables() {
   const rows = tblFiltered(), start = (tPage - 1) * 50;
   $("tbl-table").querySelector("tbody").innerHTML = rows.slice(start, start + 50).map(t => `<tr>
     <td>${t.y1 || "—"}${t.y2 && t.y2 !== t.y1 ? "–" + t.y2 : ""}</td><td>${t.o}</td><td>${t.c}</td>
-    <td>${t.l || "—"}</td><td title="${(t.t || "").replace(/"/g, "")}">${(t.t || "").slice(0, 40)}</td>
+    <td>${t.l || "—"}</td><td title="${(t.t || "").replace(/"/g, "")}"><a class="tlink" href="table.html?t=${t.s}__${t.n}" target="_blank" rel="noopener">${t.t || "—"} ↗</a></td>
     <td class="num">${t.nr}</td><td class="num">${t.nc}</td>
     <td class="${t.q && t.q.startsWith("完好") ? "qm qm-ok" : t.q && t.q.startsWith("已重建") ? "qm qm-fix" : "qm qm-warn"}"
         title="${t.q || ""}">${t.q ? (t.q.startsWith("完好") ? "完好" : t.q.startsWith("已重建") ? "已重建" : "存疑") : "—"}</td>

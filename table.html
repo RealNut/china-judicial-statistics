@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>原书统计表 · 中国司法统计数据平台</title>
+<link rel="stylesheet" href="assets/style.css">
+<style>
+.orig-wrap{max-width:1180px;margin:0 auto;padding:0 18px}
+.bread{margin:14px 0 10px;font-size:13px;color:var(--ink2)}
+.bread a{color:var(--accent2);text-decoration:none}
+.bread a:hover{text-decoration:underline}
+.meta{display:flex;flex-wrap:wrap;gap:8px 22px;margin:10px 0 14px;font-size:13px;color:var(--ink2)}
+.meta b{color:var(--ink);font-weight:600}
+.tbl-title{font-size:18px;color:var(--accent);margin:4px 0 6px;border-left:3px solid var(--accent);padding-left:9px}
+.orig-table{border-collapse:collapse;width:100%;font-size:13px;margin-top:6px}
+.orig-table th,.orig-table td{border:1px solid var(--line);padding:6px 10px;white-space:nowrap}
+.orig-table thead th{background:var(--accent);color:#fff;position:sticky;top:0}
+.orig-table tbody th{background:var(--soft);color:var(--ink);text-align:left;font-weight:600}
+.orig-table td.num,.orig-table th.num{text-align:right;font-variant-numeric:tabular-nums}
+.orig-table tr.total td,.orig-table tr.total th{background:#fff6e0;font-weight:600}
+.orig-table tr:hover td{background:#f8fbff}
+.note-card{background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:10px 14px;
+  margin:14px 0;font-size:12.5px;color:var(--ink2);line-height:1.7}
+.seg-note{color:#8a6100}
+.empty{text-align:center;color:var(--ink2);padding:40px}
+.back-btn{display:inline-block;margin-top:18px;border:1px solid var(--line);background:#fff;
+  border-radius:6px;padding:7px 16px;cursor:pointer;font-size:13px;color:var(--ink)}
+.back-btn:hover{border-color:var(--accent2);color:var(--accent)}
+</style>
+</head>
+<body>
+<header class="site-head">
+  <div class="orig-wrap">
+    <h1>原书统计表 · 单表检视</h1>
+    <p class="sub">按原书表式还原的二维表格（行 = 项目 / 年份，列 = 收案·结案等指标）</p>
+  </div>
+</header>
+
+<main class="orig-wrap">
+  <p class="bread"><a href="index.html">← 返回平台</a> · <a href="index.html#sources">数据源与表目录</a></p>
+
+  <div id="container"><p class="empty loading">加载中…</p></div>
+
+  <button class="back-btn" onclick="location.href='index.html#sources'">← 返回数据源页</button>
+</main>
+
+<script>
+function fmt(v){
+  if(v===null||v===undefined||v==="") return "";
+  if(typeof v==="number"){
+    if(!Number.isFinite(v)) return String(v);
+    return (Math.round(v*100)/100).toLocaleString("zh-CN");
+  }
+  return v;
+}
+function qBadge(q){
+  if(!q) return "";
+  if(q.startsWith("完好")) return '<span class="qm qm-ok">完好</span>';
+  if(q.startsWith("已重建")) return '<span class="qm qm-fix">已重建</span>';
+  return '<span class="qm qm-warn">存疑</span>';
+}
+const id = new URLSearchParams(location.search).get("t");
+
+async function boot(){
+  if(!id){ document.getElementById("container").innerHTML=
+    '<p class="empty">未指定表编号（URL 需含 ?t=来源__表号）。</p>'; return; }
+  let data;
+  try{ data = await fetch("data/tablegrid.json").then(r=>r.json()); }
+  catch(e){ document.getElementById("container").innerHTML=
+    '<p class="empty">数据加载失败：'+e.message+'<br>请通过本地 HTTP 服务（python3 -m http.server）打开本页。</p>'; return; }
+  const g = data.grids && data.grids[id];
+  const c = document.getElementById("container");
+  if(!g){ c.innerHTML='<p class="empty">未找到该表：'+id+'</p>'; return; }
+
+  const y = (g.year_from && g.year_to && g.year_from!==g.year_to)
+    ? g.year_from+"—"+g.year_to : (g.year_from||"—");
+  const meta = [
+    ["来源编号", g.source_id], ["年份", y], ["来源机关", g.org||"—"],
+    ["统计大类", g.category||"—"], ["审级", g.trial||"—"],
+    ["书页", g.page||"—"], ["单位", g.unit||"—"], ["质量", qBadge(g.quality)]
+  ];
+  let html = `<div class="tbl-title">${g.title||"（无标题）"}</div>`;
+  html += '<div class="meta">'+
+    meta.map(m=>`<span><b>${m[0]}：</b>${m[1]}</span>`).join("")+'</div>';
+
+  if(g.empty){
+    html += '<div class="note-card">本表在库存中无抽取记录（原书缺页或 OCR 未识别），暂无法还原内容。</div>';
+  } else {
+    html += '<div class="table-scroll tall"><table class="orig-table"><thead><tr>'+
+      '<th>'+((g.year_from!==g.year_to && g.year_to)?"年份":(g.category?"项目":"项目 / 年份"))+'</th>'+
+      g.columns.map(col=>`<th>${col}</th>`).join("")+'</tr></thead><tbody>';
+    for(const r of g.rows){
+      const cls = r.is_total ? ' class="total"' : "";
+      html += `<tr${cls}><th>${r.label}</th>`+
+        r.cells.map(v=>`<td class="num">${fmt(v)}</td>`).join("")+'</tr>';
+    }
+    html += '</tbody></table></div>';
+    if(g.segments && g.segments>1){
+      html += `<div class="note-card seg-note">提示：原表含 ${g.segments} 个分段（如「收案」段与「结案」段并列），已按列名顺序合并呈现；`+
+        `若某分段列显示为空，说明该分段原书未被抽取或列名缺失。数值为原始抽取结果，引用前建议回原书核对。</div>`;
+    }
+    if(g.quality && !g.quality.startsWith("完好")){
+      html += `<div class="note-card">数据质量：${g.quality}。该表结构存在缺损，`+
+        `还原结果可能不完全等同于原书版式，请谨慎引用。</div>`;
+    }
+  }
+  c.innerHTML = html;
+}
+boot();
+</script>
+</body>
+</html>

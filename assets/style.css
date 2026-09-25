@@ -102,3 +102,5 @@ code{background:var(--soft);padding:1px 5px;border-radius:4px;font-size:12px}
 .src-tbl{flex:1;min-width:0}
 .tbl-tools{display:flex;gap:10px;align-items:center;margin-bottom:8px}
 .tbl-tools input[type=search]{min-width:220px;flex:0 1 320px}
+.tlink{color:var(--accent);text-decoration:none;font-weight:600}
+.tlink:hover{text-decoration:underline;color:var(--accent2)}
