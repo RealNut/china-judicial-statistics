@@ -104,3 +104,21 @@ code{background:var(--soft);padding:1px 5px;border-radius:4px;font-size:12px}
 .tbl-tools input[type=search]{min-width:220px;flex:0 1 320px}
 .tlink{color:var(--accent);text-decoration:none;font-weight:600}
 .tlink:hover{text-decoration:underline;color:var(--accent2)}
+/* 视图切换（数据表/折线/柱状/饼图） */
+.view-tabs{display:flex;gap:4px;flex-wrap:wrap}
+.vtab{border:1px solid var(--line);background:#fff;border-radius:6px 6px 0 0;padding:6px 14px;
+  cursor:pointer;font-size:13px;color:var(--ink2)}
+.vtab.active{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:600}
+.view-pane{display:none}
+.view-pane.active{display:block}
+.cellink{color:var(--accent);text-decoration:none;font-weight:600}
+.cellink:hover{text-decoration:underline;color:var(--accent2)}
+/* 口径包含/转化关系提醒表 */
+.rel-table{border-collapse:collapse;width:100%;font-size:12.5px;margin-top:6px}
+.rel-table th,.rel-table td{border:1px solid var(--line);padding:7px 9px;vertical-align:top;text-align:left}
+.rel-table th{background:var(--soft);color:var(--accent);font-weight:600;position:static}
+.rel-table .rel-a{font-weight:600;color:var(--ink)}
+.rel-table .rel-arrow{color:var(--accent2);font-weight:600;white-space:nowrap}
+.rel-confirm{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink2);white-space:nowrap}
+.rel-confirm input{width:15px;height:15px}
+.rel-done{color:#2c6b3a}

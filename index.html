@@ -76,14 +76,21 @@
     </div>
 
     <div class="card">
-      <h2>可视化</h2>
-      <div class="chart-controls">
-        <label>图表类型
-          <select id="c-type">
-            <option value="line">折线图</option>
-            <option value="bar">柱状图</option>
-          </select>
-        </label>
+      <div class="card-head">
+        <h2>数据视图</h2>
+        <div class="view-tabs">
+          <button class="vtab active" data-view="table">数据表</button>
+          <button class="vtab" data-view="line">折线图</button>
+          <button class="vtab" data-view="bar">柱状图</button>
+          <button class="vtab" data-view="pie">饼图</button>
+        </div>
+        <div class="export">
+          <button id="btn-csv" class="primary dl-table">导出 CSV</button>
+          <button id="btn-csv-all" class="dl-table">导出全部字段</button>
+          <button id="btn-png" class="dl-chart">下载图表 PNG</button>
+        </div>
+      </div>
+      <div class="chart-controls dl-chart" id="chart-controls">
         <label>分组维度（图例）
           <select id="c-group">
             <option value="2">统计大类</option>
@@ -99,37 +106,32 @@
             <option value="max">最大值</option>
           </select>
         </label>
+        <span class="hint" id="view-hint"></span>
       </div>
-      <div class="chart-box"><canvas id="chart"></canvas></div>
-      <p class="note" id="chart-note"></p>
-    </div>
-
-    <div class="card">
-      <div class="card-head">
-        <h2>数据表格</h2>
-        <div class="export">
-          <button id="btn-csv" class="primary">导出 CSV</button>
-          <button id="btn-csv-all">导出全部字段 CSV</button>
+      <div id="view-table" class="view-pane active">
+        <div class="table-scroll">
+          <table id="data-table">
+            <thead><tr>
+              <th>年份</th><th>来源机关</th><th>统计大类</th><th>审级</th>
+              <th>项目</th><th>指标</th><th class="num">数值</th><th>单位</th><th>质量</th><th>统计表</th><th>来源</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="pager">
+          <button id="pg-prev">上一页</button>
+          <span id="pg-info"></span>
+          <button id="pg-next">下一页</button>
+          <select id="pg-size">
+            <option value="50">每页 50 条</option>
+            <option value="100" selected>每页 100 条</option>
+            <option value="200">每页 200 条</option>
+          </select>
         </div>
       </div>
-      <div class="table-scroll">
-        <table id="data-table">
-          <thead><tr>
-            <th>年份</th><th>来源机关</th><th>统计大类</th><th>审级</th>
-            <th>项目</th><th>指标</th><th class="num">数值</th><th>单位</th><th>质量</th><th>统计表</th><th>来源</th>
-          </tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-      <div class="pager">
-        <button id="pg-prev">上一页</button>
-        <span id="pg-info"></span>
-        <button id="pg-next">下一页</button>
-        <select id="pg-size">
-          <option value="50">每页 50 条</option>
-          <option value="100" selected>每页 100 条</option>
-          <option value="200">每页 200 条</option>
-        </select>
+      <div id="view-chart" class="view-pane">
+        <div class="chart-box"><canvas id="chart"></canvas></div>
+        <p class="note" id="chart-note"></p>
       </div>
     </div>
   </section>
@@ -171,6 +173,11 @@
     <div class="card">
       <h2>统计口径与定义说明</h2>
       <div id="notes-body"></div>
+    </div>
+    <div class="card">
+      <h2>口径包含 / 转化关系提醒（待确认）</h2>
+      <p class="note">下列口径在不同年份或审级间存在包含或转换关系，跨年比较前请逐项确认；勾选「已确认」会记录在本地浏览器，便于后续追踪。</p>
+      <div id="caliber-rel"></div>
     </div>
     <div class="card">
       <h2>疑点清单（<span id="iss-count"></span> 项）</h2>

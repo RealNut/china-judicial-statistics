@@ -44,9 +44,11 @@ async function boot() {
   buildFilters();
   buildSources(mf);
   buildNotes();
+  buildCaliberRelations();
   buildIssues();
   buildAbout(mf);
   buildTableFilters();
+  setView("table");
   apply();
   renderTables();
 }
@@ -108,12 +110,14 @@ function buildFilters() {
     filterChips("f-ind", ""); filterChips("f-proj", "");
     page = 1; apply();
   };
-  ["c-type", "c-group", "c-agg"].forEach(id => $(id).onchange = renderChart);
+  ["c-group", "c-agg"].forEach(id => $(id).onchange = renderChart);
   $("pg-size").onchange = e => { pageSize = +e.target.value; page = 1; renderTable(); };
   $("pg-prev").onclick = () => { if (page > 1) { page--; renderTable(); } };
   $("pg-next").onclick = () => { if (page * pageSize < filtered.length) { page++; renderTable(); } };
   $("btn-csv").onclick = () => exportCSV(false);
   $("btn-csv-all").onclick = () => exportCSV(true);
+  $("btn-png").onclick = exportPNG;
+  document.querySelectorAll(".vtab").forEach(b => b.onclick = () => setView(b.dataset.view));
 }
 
 function apply() {
@@ -135,9 +139,13 @@ function apply() {
   renderTable();
 }
 
-/* ---------- 图表 ---------- */
+/* ---------- 图表（折线 / 柱状 / 饼图） ---------- */
+let curView = "table";
+
 function renderChart() {
-  const g = +$("c-group").value, agg = $("c-agg").value, type = $("c-type").value;
+  if (curView === "table") return;            // 数据表视图不画图
+  const type = curView;                       // line / bar / pie
+  const g = +$("c-group").value, agg = $("c-agg").value;
   const gKey = { 1: "org", 2: "cat", 3: "lvl", 6: "proj", 7: "ind" }[g];
   const years = [...new Set(filtered.map(r => r[F.年份]))].sort((a, b) => a - b);
   const groups = new Map();
@@ -154,46 +162,84 @@ function renderChart() {
     .sort((a, b) => b[1] - a[1]).slice(0, 10).map(x => x[0]);
   const palette = ["#1F4E79", "#c0504d", "#4f81bd", "#9bbb59", "#8064a2",
     "#f09a3c", "#4bacc6", "#e06666", "#6aa84f", "#8e7cc3"];
-  const datasets = top.map((k, i) => ({
-    label: dec(gKey, k) || "—",
-    data: years.map(y => { const v = groups.get(k).get(y); return v === undefined ? null : v; }),
-    borderColor: palette[i % palette.length],
-    backgroundColor: palette[i % palette.length] + (type === "bar" ? "cc" : "22"),
-    tension: .25, spanGaps: true, pointRadius: type === "line" ? 2.2 : 0,
-  }));
-  if (chart) chart.destroy();
-  chart = new Chart($("chart"), {
-    type, data: { labels: years, datasets },
-    options: {
+  const unit = [...new Set(filtered.map(r => dec("unit", r[F.单位])))].filter(Boolean).slice(0, 3);
+  let data, options;
+  if (type === "pie") {
+    data = {
+      labels: top.map(k => dec(gKey, k) || "—"),
+      datasets: [{ data: top.map(k => groups.get(k) ? [...groups.get(k).values()].reduce((a, b) => a + b, 0) : 0),
+        backgroundColor: top.map((_, i) => palette[i % palette.length]) }],
+    };
+    options = {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: "right", labels: { boxWidth: 12, font: { size: 11 } } },
+        tooltip: { callbacks: { label: c => `${c.label}: ${Number(c.parsed).toLocaleString()}` } } },
+    };
+    $("chart-note").textContent =
+      `饼图展示筛选范围内各「${$("c-group").selectedOptions[0].textContent}」的合计构成（跨 ${years.length} 年加总）。单位：${unit.join(" / ") || "—"}。` +
+      (agg === "sum" ? " 数值为筛选结果加总；若同年存在父子项目请先筛「项目」避免重复计数。" : " 取同年最大值后加总。");
+  } else {
+    data = {
+      labels: years,
+      datasets: top.map((k, i) => ({
+        label: dec(gKey, k) || "—",
+        data: years.map(y => { const v = groups.get(k).get(y); return v === undefined ? null : v; }),
+        borderColor: palette[i % palette.length],
+        backgroundColor: palette[i % palette.length] + (type === "bar" ? "cc" : "22"),
+        tension: .25, spanGaps: true, pointRadius: type === "line" ? 2.2 : 0,
+      })),
+    };
+    options = {
       responsive: true, maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false },
-      plugins: {
-        legend: { position: "bottom", labels: { boxWidth: 12, font: { size: 11 } } },
-        tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.parsed.y?.toLocaleString() ?? "—"}` } },
-      },
-      scales: {
-        y: { ticks: { callback: v => v >= 10000 ? (v / 10000).toFixed(0) + "万" : v } },
-        x: { ticks: { maxRotation: 60, minRotation: 0 } },
-      },
-    },
-  });
-  const unit = [...new Set(filtered.map(r => dec("unit", r[F.单位])))].filter(Boolean).slice(0, 3);
-  $("chart-note").textContent =
-    `共 ${years.length} 个年份、${top.length} 个系列（按总量取前 10）。单位：${unit.join(" / ") || "—"}。` +
-    (agg === "sum" ? " 数值为筛选结果的加总；若同年份存在父子项目，请先用“项目”筛选避免重复计数。" : " 取同年最大值。");
+      plugins: { legend: { position: "bottom", labels: { boxWidth: 12, font: { size: 11 } } },
+        tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.parsed.y?.toLocaleString() ?? "—"}` } } },
+      scales: { y: { ticks: { callback: v => v >= 10000 ? (v / 10000).toFixed(0) + "万" : v } },
+        x: { ticks: { maxRotation: 60, minRotation: 0 } } },
+    };
+    $("chart-note").textContent =
+      `共 ${years.length} 个年份、${top.length} 个系列（按总量取前 10）。单位：${unit.join(" / ") || "—"}。` +
+      (agg === "sum" ? " 数值为筛选结果加总；若同年存在父子项目请先筛「项目」避免重复计数。" : " 取同年最大值。");
+  }
+  if (chart) chart.destroy();
+  chart = new Chart($("chart"), { type, data, options });
+}
+
+/* 视图切换：数据表 / 折线 / 柱状 / 饼图，每视图独立下载 */
+function setView(v) {
+  curView = v;
+  document.querySelectorAll(".vtab").forEach(b => b.classList.toggle("active", b.dataset.view === v));
+  $("view-table").classList.toggle("active", v === "table");
+  $("view-chart").classList.toggle("active", v !== "table");
+  const chartOn = v !== "table";
+  document.querySelectorAll(".dl-chart").forEach(e => e.style.display = chartOn ? "" : "none");
+  document.querySelectorAll(".dl-table").forEach(e => e.style.display = v === "table" ? "" : "none");
+  $("chart-controls").style.display = chartOn ? "flex" : "none";
+  $("view-hint").textContent = chartOn
+    ? "提示：饼图为筛选范围内各组别的合计构成；折线/柱状为逐年趋势。"
+    : "提示：数值单元格可点击，跳转查看原书统计表。";
+  if (chartOn) renderChart();
 }
 
 /* ---------- 表格 ---------- */
 function renderTable() {
   const tb = $("data-table").querySelector("tbody");
   const start = (page - 1) * pageSize, rows = filtered.slice(start, start + pageSize);
-  tb.innerHTML = rows.map(r => `<tr>
+  tb.innerHTML = rows.map(r => {
+    const srcId = dec("src", r[F.来源]);
+    const tblSeq = r[F.表序];
+    const tid = (srcId && tblSeq != null) ? `${srcId}__${tblSeq}` : "";
+    const tlink = tid ? `table.html?t=${encodeURIComponent(tid)}` : "#";
+    const ttitle = dec("tbl", r[F.表]);
+    return `<tr>
     <td>${r[F.年份]}</td><td>${dec("org", r[F.机关])}</td><td>${dec("cat", r[F.大类])}</td>
     <td>${dec("lvl", r[F.审级]) || "—"}</td><td>${dec("proj", r[F.项目])}</td>
-    <td>${dec("ind", r[F.指标])}</td><td class="num">${Number(r[F.数值]).toLocaleString()}</td>
+    <td>${dec("ind", r[F.指标])}</td>
+    <td class="num"><a class="cellink" href="${tlink}" target="_blank" rel="noopener" title="点击查看原书统计表：${ttitle.replace(/"/g, "")}">${Number(r[F.数值]).toLocaleString()}</a></td>
     <td>${dec("unit", r[F.单位])}</td><td class="${qcls(r[F.质量])}" title="${dec("q", r[F.质量])}">${qshort(r[F.质量])}</td>
-    <td title="${dec("tbl", r[F.表]).replace(/"/g, "")}">${dec("tbl", r[F.表]).slice(0, 26)}</td>
-    <td>${dec("src", r[F.来源])}</td></tr>`).join("");
+    <td title="${ttitle.replace(/"/g, "")}"><a class="tlink" href="${tlink}" target="_blank" rel="noopener">${ttitle.slice(0, 26)} ↗</a></td>
+    <td>${srcId}</td></tr>`;
+  }).join("");
   $("pg-info").textContent = `第 ${start + 1}–${Math.min(start + pageSize, filtered.length)} 条 / 共 ${filtered.length.toLocaleString()} 条`;
   $("pg-prev").disabled = page <= 1;
   $("pg-next").disabled = page * pageSize >= filtered.length;
@@ -223,6 +269,14 @@ function exportCSV(full) {
 function csv(v) {
   v = v === null || v === undefined ? "" : String(v);
   return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+}
+
+function exportPNG() {
+  if (!chart) { alert("请先切换到图表视图（折线/柱状/饼图）再下载。"); return; }
+  const a = document.createElement("a");
+  a.href = chart.toBase64Image("image/png", 1);
+  a.download = `司法统计图表_${new Date().toISOString().slice(0, 10)}.png`;
+  a.click();
 }
 
 /* ---------- 数据源（手风琴：点开每份资料查看其全部统计表，跨年资料带年份侧栏） ---------- */
@@ -408,8 +462,53 @@ function buildNotes() {
   行政复议机关以及未能判定机关的数据<strong>不进入主流程</strong>，而是按机关类型分别单独归档，
   完整保留原始字段、来源标识（来源编号／来源文件／md 行号／书页／章节标题／OCR 上下文）与采集时间，
   待资料补全后再统一梳理。机关判定规则集中在一份配置文件中，可扩展。</p>
-  <p><strong>1998 年前的刑事数据。</strong>最高人民法院汇编第二册不含刑事案件，
+    <p><strong>1998 年前的刑事数据。</strong>最高人民法院汇编第二册不含刑事案件，
   1998 年前的刑事数据仅来自《中国法律年鉴》，无第二来源可校验。</p>`;
+}
+
+/* 口径包含 / 转化关系提醒（供人工确认，确认状态存本地浏览器） */
+function buildCaliberRelations() {
+  const rel = [
+    { a: "2000 年前「民事」", arrow: "＋经济纠纷", b: "2000 年后「民事」（大民事格局）",
+      note: "2000 年起最高法将经济纠纷并入民事。跨 2000 年比较须取「民事＋经济纠纷」之和，否则出现虚假跃升。", key: "rel-2000" },
+    { a: "审判监督（再审）", arrow: "1959 年前=未单列", b: "1959 年起单列",
+      note: "1959 年前无审判监督项，非数值 0，应视为「未单列」。", key: "rel-1959" },
+    { a: "经济纠纷", arrow: "1983 年前=并入民事/未单列", b: "1983 年起单列",
+      note: "1983 年前经济纠纷无独立统计。", key: "rel-1983" },
+    { a: "行政", arrow: "1987 年前=未单列", b: "1987 年起单列",
+      note: "行政诉讼法 1990 施行；1987 前行政案件依民诉法审理，未单列。", key: "rel-1987" },
+    { a: "2015 年前收案", arrow: "制度性跃升", b: "2015 年立案登记制后",
+      note: "2015-05-01 立案登记制使收案量制度性跃升（民事一审 830万→1009万），长时段趋势应分两阶段。", key: "rel-2015" },
+    { a: "2017 前「一审」表", arrow: "不可混用", b: "2017 起「全审级」表",
+      note: "2017 起新增不分审级汇总表与一审表并存，相差很大，必须固定审级筛选。", key: "rel-2017" },
+    { a: "2019 前「收案」", arrow: "口径调整", b: "2020 起「受理」",
+      note: "2020 卷起「审理/收案」改称「受理」，非完全同一口径，并列须注明。", key: "rel-2020" },
+    { a: "结案", arrow: "含上年旧存", b: "收案",
+      note: "结案含上年旧存，故结案可能＞收案，不可用「收案−结案」推算未结。", key: "rel-old" },
+    { a: "刑事（1950–1997）", arrow: "源缺失", b: "仅 1998 起（年鉴）",
+      note: "汇编第二册不含刑事；1998 前刑事仅年鉴，无第二来源。", key: "rel-crim" },
+    { a: "行政（1950–1986）", arrow: "源缺失", b: "1987 起",
+      note: "行政 1987 起才有统计。", key: "rel-admin" },
+    { a: "2011–2019 法院", arrow: "源仅审判机关", b: "其他机关断档",
+      note: "这 9 卷 OCR 仅含审判机关章，检察/公安/民政/行政复议断档。", key: "rel-2011" },
+  ];
+  const done = JSON.parse(localStorage.getItem("caliber_confirmed") || "{}");
+  $("caliber-rel").innerHTML = `<table class="rel-table"><thead><tr>
+    <th>口径 A</th><th>关系</th><th>口径 B</th><th>说明</th><th>确认</th></tr></thead><tbody>` +
+    rel.map(r => `<tr>
+      <td class="rel-a">${r.a}</td><td class="rel-arrow">${r.arrow}</td><td class="rel-a">${r.b}</td>
+      <td>${r.note}</td>
+      <td><label class="rel-confirm"><input type="checkbox" data-k="${r.key}" ${done[r.key] ? "checked" : ""}>
+        <span class="${done[r.key] ? "rel-done" : ""}">${done[r.key] ? "已确认" : "待确认"}</span></label></td>
+    </tr>`).join("") + "</tbody></table>";
+  $("caliber-rel").querySelectorAll("input").forEach(c => c.onchange = e => {
+    const k = e.target.dataset.k;
+    const d = JSON.parse(localStorage.getItem("caliber_confirmed") || "{}");
+    d[k] = e.target.checked;
+    localStorage.setItem("caliber_confirmed", JSON.stringify(d));
+    e.target.nextElementSibling.textContent = e.target.checked ? "已确认" : "待确认";
+    e.target.nextElementSibling.className = e.target.checked ? "rel-done" : "";
+  });
 }
 function buildIssues() {
   $("iss-count").textContent = ISSUES.length;
