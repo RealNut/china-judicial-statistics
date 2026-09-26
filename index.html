@@ -96,7 +96,7 @@
             <option value="2">统计大类</option>
             <option value="6">项目</option>
             <option value="7">指标</option>
-            <option value="3">审级</option>
+            <option value="4">审级</option>
             <option value="1">来源机关</option>
           </select>
         </label>
@@ -109,11 +109,12 @@
         <span class="hint" id="view-hint"></span>
       </div>
       <div id="view-table" class="view-pane active">
+        <p class="note">↺ 表示该字段已做重分类 / 单位归一化，悬停可看原始值；数值悬停显示「原始值」，单位列含归一化单位与列级单位（悬停查看）。所有数据均为源表真实值，未作任何合计推断。</p>
         <div class="table-scroll">
           <table id="data-table">
             <thead><tr>
               <th>年份</th><th>来源机关</th><th>统计大类</th><th>审级</th>
-              <th>项目</th><th>指标</th><th class="num">数值</th><th>单位</th><th>质量</th><th>统计表</th><th>来源</th>
+              <th>项目</th><th>指标</th><th class="num">数值</th><th>单位 / 归一</th><th>质量</th><th>统计表</th><th>来源</th>
             </tr></thead>
             <tbody></tbody>
           </table>

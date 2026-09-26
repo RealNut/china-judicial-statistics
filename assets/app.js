@@ -1,6 +1,6 @@
 /* 中国司法统计数据平台 —— 纯前端只读检索与可视化
    数据来自 data/*.json（静态文件），站点不含任何写入接口。 */
-const F = { 年份: 0, 机关: 1, 大类: 2, 审级: 3, 表: 4, 项目: 5, 指标: 6, 数值: 7, 单位: 8, 合计: 9, 来源: 10, 表序: 11, 页: 12, 质量: 13 };
+const F = { 年份: 0, 机关: 1, 大类: 2, 大类原始: 3, 审级: 4, 表: 5, 项目: 6, 指标: 7, 数值: 8, 原始值: 9, 单位: 10, 单位归一: 11, 单位备注: 12, 列级单位: 13, 合计: 14, 来源: 15, 表序: 16, 页: 17, 质量: 18 };
 
 let DATA = null, TABLES = null, ISSUES = null;
 let filtered = [];
@@ -146,7 +146,7 @@ function renderChart() {
   if (curView === "table") return;            // 数据表视图不画图
   const type = curView;                       // line / bar / pie
   const g = +$("c-group").value, agg = $("c-agg").value;
-  const gKey = { 1: "org", 2: "cat", 3: "lvl", 6: "proj", 7: "ind" }[g];
+  const gKey = { 1: "org", 2: "cat", 4: "lvl", 6: "proj", 7: "ind" }[g];
   const years = [...new Set(filtered.map(r => r[F.年份]))].sort((a, b) => a - b);
   const groups = new Map();
   for (const r of filtered) {
@@ -225,18 +225,31 @@ function setView(v) {
 function renderTable() {
   const tb = $("data-table").querySelector("tbody");
   const start = (page - 1) * pageSize, rows = filtered.slice(start, start + pageSize);
-  tb.innerHTML = rows.map(r => {
+    tb.innerHTML = rows.map(r => {
     const srcId = dec("src", r[F.来源]);
     const tblSeq = r[F.表序];
     const tid = (srcId && tblSeq != null) ? `${srcId}__${tblSeq}` : "";
     const tlink = tid ? `table.html?t=${encodeURIComponent(tid)}` : "#";
     const ttitle = dec("tbl", r[F.表]);
+    const cat = dec("cat", r[F.大类]);
+    const catOrig = dec("cat_orig", r[F.大类原始]);
+    const unit = dec("unit", r[F.单位]);
+    const unitNorm = dec("unit_norm", r[F.单位归一]);
+    const unitNote = dec("unit_note", r[F.单位备注]);
+    const colUnit = dec("colunit", r[F.列级单位]);
+    const oval = r[F.原始值];
+    const numTitle = (oval != null && oval !== r[F.数值] ? `原始值：${Number(oval).toLocaleString()}；` : "") + "点击查看原书统计表：" + ttitle;
+    const catCell = (catOrig && catOrig !== cat)
+      ? `${cat}<span class="orig" title="原始分类：${catOrig.replace(/"/g, "")}">↺${catOrig}</span>` : cat;
+    const unitCell = (unitNorm && unitNorm !== unit)
+      ? `${unitNorm}<span class="orig" title="OCR 原始单位：${unit.replace(/"/g, "")}">↺${unit}</span>` : (unit || "—");
+    const unitTitle = [unitNote ? "单位备注：" + unitNote : "", colUnit ? "列级单位：" + colUnit : ""].filter(Boolean).join("；");
     return `<tr>
-    <td>${r[F.年份]}</td><td>${dec("org", r[F.机关])}</td><td>${dec("cat", r[F.大类])}</td>
+    <td>${r[F.年份]}</td><td>${dec("org", r[F.机关])}</td><td>${catCell}</td>
     <td>${dec("lvl", r[F.审级]) || "—"}</td><td>${dec("proj", r[F.项目])}</td>
     <td>${dec("ind", r[F.指标])}</td>
-    <td class="num"><a class="cellink" href="${tlink}" target="_blank" rel="noopener" title="点击查看原书统计表：${ttitle.replace(/"/g, "")}">${Number(r[F.数值]).toLocaleString()}</a></td>
-    <td>${dec("unit", r[F.单位])}</td><td class="${qcls(r[F.质量])}" title="${dec("q", r[F.质量])}">${qshort(r[F.质量])}</td>
+    <td class="num"><a class="cellink" href="${tlink}" target="_blank" rel="noopener" title="${numTitle.replace(/"/g, "")}">${Number(r[F.数值]).toLocaleString()}</a></td>
+    <td title="${unitTitle.replace(/"/g, "")}">${unitCell}</td><td class="${qcls(r[F.质量])}" title="${dec("q", r[F.质量])}">${qshort(r[F.质量])}</td>
     <td title="${ttitle.replace(/"/g, "")}"><a class="tlink" href="${tlink}" target="_blank" rel="noopener">${ttitle.slice(0, 26)} ↗</a></td>
     <td>${srcId}</td></tr>`;
   }).join("");
@@ -247,14 +260,15 @@ function renderTable() {
 
 function exportCSV(full) {
   const head = full
-    ? ["年份", "来源机关", "统计大类", "审级", "项目", "指标", "数值", "单位",
+    ? ["年份", "来源机关", "统计大类", "统计大类(原始)", "审级", "项目", "指标", "数值", "原始值", "单位", "单位(归一化)", "单位备注", "列级单位",
        "是否合计项", "统计表", "来源编号", "表序号", "书页", "质量标志"]
-    : ["年份", "来源机关", "统计大类", "审级", "项目", "指标", "数值", "单位", "统计表", "来源编号", "质量标志"];
+    : ["年份", "来源机关", "统计大类", "审级", "项目", "指标", "数值", "原始值", "单位", "单位(归一化)", "统计表", "来源编号", "质量标志"];
   const lines = [head.join(",")];
   for (const r of filtered) {
-    const base = [r[F.年份], dec("org", r[F.机关]), dec("cat", r[F.大类]),
+    const base = [r[F.年份], dec("org", r[F.机关]), dec("cat", r[F.大类]), dec("cat_orig", r[F.大类原始]),
       dec("lvl", r[F.审级]), dec("proj", r[F.项目]), dec("ind", r[F.指标]),
-      r[F.数值], dec("unit", r[F.单位])];
+      r[F.数值], r[F.原始值], dec("unit", r[F.单位]), dec("unit_norm", r[F.单位归一]),
+      dec("unit_note", r[F.单位备注]), dec("colunit", r[F.列级单位])];
     const tail = full
       ? [r[F.合计] ? "是" : "", dec("tbl", r[F.表]), dec("src", r[F.来源]), r[F.表序], r[F.页] || "", dec("q", r[F.质量])]
       : [dec("tbl", r[F.表]), dec("src", r[F.来源]), dec("q", r[F.质量])];

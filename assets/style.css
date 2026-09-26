@@ -113,6 +113,7 @@ code{background:var(--soft);padding:1px 5px;border-radius:4px;font-size:12px}
 .view-pane.active{display:block}
 .cellink{color:var(--accent);text-decoration:none;font-weight:600}
 .cellink:hover{text-decoration:underline;color:var(--accent2)}
+.orig{color:#9aa3ad;font-size:.72em;margin-left:3px;cursor:help;border-bottom:1px dotted #c2c8d0}
 /* 口径包含/转化关系提醒表 */
 .rel-table{border-collapse:collapse;width:100%;font-size:12.5px;margin-top:6px}
 .rel-table th,.rel-table td{border:1px solid var(--line);padding:7px 9px;vertical-align:top;text-align:left}

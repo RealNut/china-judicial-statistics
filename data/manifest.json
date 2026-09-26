@@ -1,23 +1,23 @@
 {
   "说明": "本目录下 data/*.json 为只读原始数据，由 OCR 抽取流水线一次性生成；网站不提供任何写入接口。修改数据须重新生成并更新本清单中的哈希值。",
-  "生成时间": "2026-09-26 00:46:10",
+  "生成时间": "2026-09-26 08:15:07",
   "记录数": 63016,
   "文件": {
     "dataset.json": {
-      "bytes": 2794318,
-      "sha256": "5387dc16caf299cd63cc3e4d58be8d7ca6065b09baedcdec7d0d1dc472e15b54"
+      "bytes": 3613691,
+      "sha256": "5ec91d8185c4ad4ec527f0bbab444ef865ccb4aa080f82d0eacf564eb033d631"
     },
     "tables.json": {
-      "bytes": 164956,
-      "sha256": "29178a9740110434b2678ad8e43064e6677a91ce23f5b1ca57711280aa0d6345"
+      "bytes": 164890,
+      "sha256": "4d7134195eff3b81444f83d01ba5617f08d2780a1fb826712410ae76b35e100d"
     },
     "issues.json": {
-      "bytes": 14734,
-      "sha256": "fa41b64691b902ef81357eb5051b8d4fc833d360ffa2dea76a9649bf80e1cf74"
+      "bytes": 13381,
+      "sha256": "d0b4ffdf1c382784f2ef3f09021d1b316d1fd52d3413257537be4be44a12b3ef"
     },
     "tablegrid.json": {
-      "bytes": 794563,
-      "sha256": "c1e6888a034ca9ef443ac26248e006b9bc21de83ca95855fe8b0299a8a76dbfa"
+      "bytes": 789767,
+      "sha256": "4c4f9360f733d51b935c170aca48766dc11b478eacd219989083e0bd6f7851e3"
     }
   }
 }
