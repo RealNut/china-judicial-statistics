@@ -5,7 +5,6 @@ const F = { 年份: 0, 机关: 1, 大类: 2, 大类原始: 3, 审级: 4, 表: 5,
 let DATA = null, TABLES = null, ISSUES = null;
 let filtered = [];
 let page = 1, pageSize = 100;
-let tPage = 1;
 let chart = null;
 
 const $ = id => document.getElementById(id);
@@ -42,15 +41,13 @@ async function boot() {
     $("badge-hash").title = "dataset.json 的 SHA-256：" + mf["文件"]["dataset.json"].sha256;
   }
   buildFilters();
-  buildSources(mf);
+  buildIntegrity(mf);
   buildNotes();
   buildCaliberRelations();
   buildIssues();
   buildAbout(mf);
-  buildTableFilters();
   setView("table");
   apply();
-  renderTables();
 }
 
 /* ---------- 筛选器 ---------- */
@@ -328,154 +325,13 @@ function exportPNG() {
   a.click();
 }
 
-/* ---------- 数据源（手风琴：点开每份资料查看其全部统计表，跨年资料带年份侧栏） ---------- */
-function srcMeta(k) {
-  const fixed = {
-    SPC_HIST_1949_1998: ["全国人民法院司法统计历史资料汇编（1949～1998）",
-      "最高人民法院研究室 编；主编 杨润时 · 人民法院出版社 2000 年",
-      "1950—1998 · 民事、经济纠纷、行政、海事海商、交通运输案件；执行、来信来访、综合治理、赔偿、督促与公示催告程序"],
-    CHINA_LAW_YEARBOOK_1998: ["中国法律年鉴（1998 年卷）· 统计资料",
-      "中国法律年鉴社 编 · 1999 年", "1998 · 审判机关（该书其余系统数据已按机关分流归档）"],
-    CHINA_LAW_YEARBOOK_1999: ["中国法律年鉴（1999 年卷）· 统计资料",
-      "中国法律年鉴社 编 · 2000 年", "1999 · 审判机关"],
-  };
-  if (fixed[k]) return fixed[k];
-  const y = (k.match(/(\d{4})$/) || [])[1];
-  const extra = y >= 2011 && y <= 2019 ? "（该卷源文件仅含审判机关一章）" : "";
-  return [`中国法律年鉴（${y} 年卷）· 统计资料`, "中国法律年鉴社 编",
-    `${y} · 审判机关${extra}（2000 年起民事含原经济纠纷）`];
-}
-
-function qBadge(q) {
-  if (!q) return "—";
-  if (q.startsWith("完好")) return '<span class="qm qm-ok">完好</span>';
-  if (q.startsWith("已重建")) return '<span class="qm qm-fix">已重建</span>';
-  return '<span class="qm qm-warn">存疑</span>';
-}
-
-/* 渲染某份资料展开后的表列表 + 年份侧栏（懒加载，首次展开才渲染） */
-function renderSrcTables(det, sid) {
-  const tabs = TABLES.filter(t => t.s === sid)
-    .sort((a, b) => (a.y1 || 0) - (b.y1 || 0) || (a.n || 0) - (b.n || 0));
-  const body = det.querySelector(".src-body");
-  const yrail = body.querySelector(".yrail");
-  const tbody = body.querySelector("tbody");
-  const hint = body.querySelector(".src-hint");
-  const q = body.querySelector(".src-q");
-  const years = [...new Set(tabs.map(t => t.y1).filter(Boolean))].sort((a, b) => a - b);
-  let activeYear = null;
-
-  function rows() {
-    return tabs.filter(t => (!activeYear || t.y1 === activeYear) &&
-      (!q.value.trim() || (t.t || "").includes(q.value.trim()) || (t.c || "").includes(q.value.trim())));
-  }
-  function paint() {
-    const list = rows();
-    tbody.innerHTML = list.map(t => `<tr>
-      <td>${t.y1 || "—"}${t.y2 && t.y2 !== t.y1 ? "–" + t.y2 : ""}</td>
-      <td>${t.c}</td><td>${t.l || "—"}</td>
-      <td title="${(t.t || "").replace(/"/g, "")}"><a class="tlink" href="catalog.html#${t.s}__${t.n}" target="_blank" rel="noopener">${t.t || "—"} ↗</a></td>
-      <td class="num">${t.nr}</td><td class="num">${t.nc}</td><td>${qBadge(t.q)}</td>
-      <td>${t.p || "—"}</td><td class="num">${t.ln || "—"}</td></tr>`).join("");
-    hint.textContent = `共 ${list.length} 张` + (activeYear ? ` · ${activeYear} 年` : "");
-  }
-  if (years.length > 1) {
-    yrail.hidden = false;
-    yrail.innerHTML = `<div class="yrail-title">年份</div>` +
-      years.map(y => `<button class="yrail-btn" data-y="${y}">${y}</button>`).join("");
-    yrail.onclick = e => {
-      const b = e.target.closest(".yrail-btn");
-      if (!b) return;
-      activeYear = activeYear === +b.dataset.y ? null : +b.dataset.y;
-      yrail.querySelectorAll(".yrail-btn").forEach(x =>
-        x.classList.toggle("on", +x.dataset.y === activeYear));
-      paint();
-    };
-  }
-  q.oninput = paint;
-  paint();
-}
-
-function buildSources(mf) {
-  const cnt = {};
-  for (const t of TABLES) cnt[t.s] = (cnt[t.s] || 0) + 1;
-  const keys = [...new Set(TABLES.map(t => t.s))].sort((a, b) => {
-    const ya = (a.match(/(\d{4})$/) || [])[1] || "0";
-    const yb = (b.match(/(\d{4})$/) || [])[1] || "0";
-    return (a === "SPC_HIST_1949_1998" ? -1 : b === "SPC_HIST_1949_1998" ? 1 : ya - yb);
-  });
-  const el = $("src-list");
-  el.innerHTML = "";
-  for (const k of keys) {
-    const [name, pub, scope] = srcMeta(k);
-    const det = document.createElement("details");
-    det.className = "src-acc";
-    det.innerHTML = `
-      <summary><span class="src-name">${name}</span>
-        <span class="src-cnt">${cnt[k] || 0} 张统计表 · 点击展开</span></summary>
-      <div class="src-body">
-        <p class="src-pub">${pub}</p><p class="src-pub">${scope}</p>
-        <div class="src-layout">
-          <div class="yrail" hidden></div>
-          <div class="src-tbl">
-            <div class="tbl-tools">
-              <input type="search" class="src-q" placeholder="搜索表标题 / 类别">
-              <span class="hint src-hint"></span>
-            </div>
-            <div class="table-scroll"><table><thead><tr>
-              <th>年份</th><th>类别</th><th>审级</th><th>表标题</th>
-              <th class="num">行数</th><th class="num">列数</th><th>质量</th>
-              <th>页</th><th class="num">md行</th>
-            </tr></thead><tbody></tbody></table></div>
-          </div>
-        </div>
-      </div>`;
-    det.addEventListener("toggle", () => {
-      if (det.open && !det._done) { det._done = true; renderSrcTables(det, k); }
-    });
-    el.appendChild(det);
-  }
-  if (mf) {
-    const div = document.createElement("div");
-    div.className = "src";
-    div.innerHTML = `<h3>数据完整性</h3><p>生成时间：${mf["生成时间"]}　记录数：${mf["记录数"]}</p>
-      ${Object.entries(mf["文件"]).map(([f, v]) => `<p><code>${f}</code> ${(v.bytes / 1048576).toFixed(2)} MB · SHA-256 <code>${v.sha256}</code></p>`).join("")}
-      <p>数据文件为静态只读资源，站点不含任何写入接口；如需更正，须重新生成文件并同步更新校验值。</p>`;
-    el.appendChild(div);
-  }
-}
-
-function buildTableFilters() {
-  $("tbl-count").textContent = TABLES.length;
-  const orgs = [...new Set(TABLES.map(t => t.o))].sort();
-  const yrs = [...new Set(TABLES.map(t => t.y1))].filter(Boolean).sort((a, b) => a - b);
-  $("tbl-org").innerHTML += orgs.map(o => `<option>${o}</option>`).join("");
-  $("tbl-year").innerHTML += yrs.map(y => `<option value="${y}">${y}</option>`).join("");
-  const qf = [...new Set(TABLES.map(t => t.q).filter(Boolean))];
-  $("tbl-q-flag").innerHTML += qf.map(q => `<option value="${q}">${q}</option>`).join("");
-  ["tbl-q", "tbl-org", "tbl-year", "tbl-q-flag"].forEach(id => $(id).oninput = () => { tPage = 1; renderTables(); });
-  $("tp-prev").onclick = () => { if (tPage > 1) { tPage--; renderTables(); } };
-  $("tp-next").onclick = () => { if (tPage * 50 < tblFiltered().length) { tPage++; renderTables(); } };
-}
-function tblFiltered() {
-  const q = $("tbl-q").value.trim(), o = $("tbl-org").value, y = $("tbl-year").value;
-  const qflag = $("tbl-q-flag").value;
-  return TABLES.filter(t =>
-    (!o || t.o === o) && (!y || String(t.y1) === y) && (!qflag || t.q === qflag) &&
-    (!q || (t.t || "").includes(q) || (t.c || "").includes(q) || (t.o || "").includes(q))
-  ).sort((a, b) => (a.y1 || 0) - (b.y1 || 0) || (a.n || 0) - (b.n || 0));
-}
-function renderTables() {
-  const rows = tblFiltered(), start = (tPage - 1) * 50;
-  $("tbl-table").querySelector("tbody").innerHTML = rows.slice(start, start + 50).map(t => `<tr>
-    <td>${t.y1 || "—"}${t.y2 && t.y2 !== t.y1 ? "–" + t.y2 : ""}</td><td>${t.o}</td><td>${t.c}</td>
-    <td>${t.l || "—"}</td><td title="${(t.t || "").replace(/"/g, "")}"><a class="tlink" href="catalog.html#${t.s}__${t.n}" target="_blank" rel="noopener">${t.t || "—"} ↗</a></td>
-    <td class="num">${t.nr}</td><td class="num">${t.nc}</td>
-    <td class="${t.q && t.q.startsWith("完好") ? "qm qm-ok" : t.q && t.q.startsWith("已重建") ? "qm qm-fix" : "qm qm-warn"}"
-        title="${t.q || ""}">${t.q ? (t.q.startsWith("完好") ? "完好" : t.q.startsWith("已重建") ? "已重建" : "存疑") : "—"}</td>
-    <td>${t.p || "—"}</td>
-    <td>${t.s.replace("CHINA_LAW_YEARBOOK_", "年鉴").replace("SPC_HIST_1949_1998", "最高法汇编")}</td></tr>`).join("");
-  $("tp-info").textContent = `第 ${start + 1}–${Math.min(start + 50, rows.length)} 张 / 共 ${rows.length} 张`;
+/* ---------- 数据完整性（manifest 哈希；目录已整合至 catalog.html） ---------- */
+function buildIntegrity(mf) {
+  if (!mf) { $("integrity-body").innerHTML = "<p class=\"note\">未找到 manifest.json。</p>"; return; }
+  $("integrity-body").innerHTML =
+    `<p class="note" style="margin:0 0 6px">数据文件为静态只读资源，站点不含任何写入接口；如需更正，须重新生成文件并同步更新校验值。完整的表目录与异常标记见 <a class="tlink" href="catalog.html">catalog.html</a>。</p>
+     <p>生成时间：${mf["生成时间"]}　记录数：${mf["记录数"]}</p>
+     ${Object.entries(mf["文件"]).map(([f, v]) => `<p><code>${f}</code> ${(v.bytes / 1048576).toFixed(2)} MB · SHA-256 <code>${v.sha256}</code></p>`).join("")}`;
 }
 
 /* ---------- 说明与疑点 ---------- */

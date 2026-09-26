@@ -142,39 +142,21 @@
   <!-- ============ 数据源 ============ -->
   <section id="tab-sources" class="tabpane">
     <div class="card" style="border-left:3px solid var(--accent2)">
-      <h2>完整表目录（含全部源表 + 异常标记）· 新增</h2>
-      <p class="note" style="margin:0">从导入的 Markdown 源文件直接抽取 <strong>全部 1372 张统计表</strong>，逐一重建为二维网格，
-        按来源文件分组排列，每张表标注其在法院数据集中的归属、质量与异常，可溯源至原 Markdown 行号。
-        非法院数据（检察 / 公安 / 司法行政 / 民政等）与疑似漏录表均明显标记，供逐条核对。</p>
+      <h2>数据来源与表目录（已整合）</h2>
+      <p class="note" style="margin:0 0 6px">原页签下的两套目录（「数据来源」分册视图 735 张 + 「完整表目录」1372 张）已<strong>整合为一份</strong>：
+        整合依据是二者同源于同一批 Markdown 文件，法院数据集的每一张表都能按 <code>来源文件 + md行号</code>
+        无损对齐到源文件抽取结果（735/735 全部命中，0 条丢失），其类别 / 审级 / 年份 / 质量标志已全部随行带入整合版，
+        两套数据无任何字段冲突。</p>
+      <p class="note" style="margin:0 0 6px">整合版（catalog.html）提供：① 全部 1372 张源表按出版物分组、逐一重建二维网格，
+        每张表标注「法院数据集收录 / 未纳入（非法院或待核）」；② <strong>异常总览面板</strong>——按异常代码统计、点击筛选，
+        并可<strong>导出异常清单 CSV</strong> 逐条销号；③ 每条异常（及每张表）均有锚点
+        <code>catalog.html#来源__表号</code>，打开即自动展开原表网格与 md 行号定位，可直接截图核对；
+        ④ 法院表卡片附「处理后长表还原视图」对照链接。</p>
       <p style="margin:8px 0 0"><a class="tlink" href="catalog.html" style="font-size:14px">→ 打开数据源与表目录（catalog.html）</a></p>
     </div>
     <div class="card">
-      <h2>数据来源</h2>
-      <p class="note" style="margin:0 0 10px">点击任一资料可展开，查看该书收录的全部统计表；
-        跨多年的资料（如最高法汇编）展开后可用<strong>右侧年份标签</strong>逐年查看。</p>
-      <div id="src-list"></div>
-    </div>
-    <div class="card">
-      <h2>表目录（<span id="tbl-count"></span> 张）</h2>
-      <p class="note">列出每一张原书统计表，可按年份、机关、类别检索，用于溯源核对。</p>
-      <div class="filters inline">
-        <input type="search" id="tbl-q" placeholder="搜索表标题 / 类别 / 机关">
-        <select id="tbl-org"><option value="">全部机关</option></select>
-        <select id="tbl-year"><option value="">全部年份</option></select>
-        <select id="tbl-q-flag"><option value="">全部质量</option></select>
-      </div>
-      <div class="table-scroll tall">
-        <table id="tbl-table">
-          <thead><tr>
-            <th>年份</th><th>机关</th><th>类别</th><th>审级</th><th>表标题</th>
-            <th class="num">行数</th><th class="num">列数</th><th>质量</th><th>页</th><th>来源</th>
-          </tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-      <div class="pager">
-        <button id="tp-prev">上一页</button><span id="tp-info"></span><button id="tp-next">下一页</button>
-      </div>
+      <h2>数据完整性</h2>
+      <div id="integrity-body"></div>
     </div>
   </section>
 
