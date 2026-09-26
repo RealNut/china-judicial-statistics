@@ -123,3 +123,5 @@ code{background:var(--soft);padding:1px 5px;border-radius:4px;font-size:12px}
 .rel-confirm{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink2);white-space:nowrap}
 .rel-confirm input{width:15px;height:15px}
 .rel-done{color:#2c6b3a}
+.series-only{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--ink2);white-space:nowrap}
+#series-list{max-height:120px;width:100%;flex-basis:100%}

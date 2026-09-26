@@ -110,7 +110,11 @@ function buildFilters() {
     filterChips("f-ind", ""); filterChips("f-proj", "");
     page = 1; apply();
   };
-  ["c-group", "c-agg"].forEach(id => $(id).onchange = renderChart);
+  ["c-group", "c-agg"].forEach(id => $(id).onchange = e => {
+    if (id === "c-group") populateSeries();
+    renderChart();
+  });
+  $("c-series-only").onchange = renderChart;
   $("pg-size").onchange = e => { pageSize = +e.target.value; page = 1; renderTable(); };
   $("pg-prev").onclick = () => { if (page > 1) { page--; renderTable(); } };
   $("pg-next").onclick = () => { if (page * pageSize < filtered.length) { page++; renderTable(); } };
@@ -135,8 +139,32 @@ function apply() {
     r[F.数值] !== null && r[F.数值] !== undefined
   );
   $("result-count").textContent = `命中 ${filtered.length.toLocaleString()} 条记录`;
+  populateSeries();
   renderChart();
   renderTable();
+}
+
+/* 绘图系列选择：列出当前分组维度的全部取值，用户可勾选具体系列绘制（点三） */
+function populateSeries() {
+  const box = $("series-list");
+  if (!box) return;
+  const g = +$("c-group").value;
+  const gKey = { 1: "org", 2: "cat", 4: "lvl", 6: "proj", 7: "ind" }[g];
+  const seen = new Map();
+  for (const r of filtered) {
+    const k = r[g];
+    seen.set(k, (seen.get(k) || 0) + 1);
+  }
+  const list = [...seen.entries()].sort((a, b) => b[1] - a[1]);
+  box.innerHTML = "";
+  for (const [k, cnt] of list) {
+    const c = document.createElement("span");
+    c.className = "chip on";
+    c.textContent = (dec(gKey, k) || "（无）") + " " + cnt;
+    c.dataset.k = k;
+    c.onclick = () => { c.classList.toggle("on"); renderChart(); };
+    box.appendChild(c);
+  }
 }
 
 /* ---------- 图表（折线 / 柱状 / 饼图） ---------- */
@@ -157,9 +185,16 @@ function renderChart() {
     if (agg === "sum") m.set(r[F.年份], (m.get(r[F.年份]) || 0) + v);
     else m.set(r[F.年份], Math.max(m.get(r[F.年份]) ?? -Infinity, v));
   }
-  const top = [...groups.entries()]
-    .map(([k, m]) => [k, [...m.values()].reduce((a, b) => a + b, 0)])
-    .sort((a, b) => b[1] - a[1]).slice(0, 10).map(x => x[0]);
+  let top;
+  if ($("c-series-only") && $("c-series-only").checked) {
+    // 点三：仅绘制用户在下方勾选的系列（按当前分组维度的取值）
+    const on = new Set([...$("series-list").querySelectorAll(".chip.on")].map(c => +c.dataset.k));
+    top = [...groups.keys()].filter(k => on.has(k));
+  } else {
+    top = [...groups.entries()]
+      .map(([k, m]) => [k, [...m.values()].reduce((a, b) => a + b, 0)])
+      .sort((a, b) => b[1] - a[1]).slice(0, 10).map(x => x[0]);
+  }
   const palette = ["#1F4E79", "#c0504d", "#4f81bd", "#9bbb59", "#8064a2",
     "#f09a3c", "#4bacc6", "#e06666", "#6aa84f", "#8e7cc3"];
   const unit = [...new Set(filtered.map(r => dec("unit", r[F.单位])))].filter(Boolean).slice(0, 3);
@@ -216,8 +251,8 @@ function setView(v) {
   document.querySelectorAll(".dl-table").forEach(e => e.style.display = v === "table" ? "" : "none");
   $("chart-controls").style.display = chartOn ? "flex" : "none";
   $("view-hint").textContent = chartOn
-    ? "提示：饼图为筛选范围内各组别的合计构成；折线/柱状为逐年趋势。"
-    : "提示：数值单元格可点击，跳转查看原书统计表。";
+    ? "提示：折线/柱状为逐年趋势；勾选「仅绘所选系列」可在下方勾选具体系列。饼图为筛选范围内各组别的合计构成。"
+    : "提示：数值单元格与“统计表”列均可点击，跳转到「数据源与表目录」中对应的原始表并定位（含异常标记）。";
   if (chartOn) renderChart();
 }
 
@@ -229,7 +264,7 @@ function renderTable() {
     const srcId = dec("src", r[F.来源]);
     const tblSeq = r[F.表序];
     const tid = (srcId && tblSeq != null) ? `${srcId}__${tblSeq}` : "";
-    const tlink = tid ? `table.html?t=${encodeURIComponent(tid)}` : "#";
+    const tlink = tid ? `catalog.html#${tid}` : "#";
     const ttitle = dec("tbl", r[F.表]);
     const cat = dec("cat", r[F.大类]);
     const catOrig = dec("cat_orig", r[F.大类原始]);
@@ -339,7 +374,7 @@ function renderSrcTables(det, sid) {
     tbody.innerHTML = list.map(t => `<tr>
       <td>${t.y1 || "—"}${t.y2 && t.y2 !== t.y1 ? "–" + t.y2 : ""}</td>
       <td>${t.c}</td><td>${t.l || "—"}</td>
-      <td title="${(t.t || "").replace(/"/g, "")}"><a class="tlink" href="table.html?t=${t.s}__${t.n}" target="_blank" rel="noopener">${t.t || "—"} ↗</a></td>
+      <td title="${(t.t || "").replace(/"/g, "")}"><a class="tlink" href="catalog.html#${t.s}__${t.n}" target="_blank" rel="noopener">${t.t || "—"} ↗</a></td>
       <td class="num">${t.nr}</td><td class="num">${t.nc}</td><td>${qBadge(t.q)}</td>
       <td>${t.p || "—"}</td><td class="num">${t.ln || "—"}</td></tr>`).join("");
     hint.textContent = `共 ${list.length} 张` + (activeYear ? ` · ${activeYear} 年` : "");
@@ -434,7 +469,7 @@ function renderTables() {
   const rows = tblFiltered(), start = (tPage - 1) * 50;
   $("tbl-table").querySelector("tbody").innerHTML = rows.slice(start, start + 50).map(t => `<tr>
     <td>${t.y1 || "—"}${t.y2 && t.y2 !== t.y1 ? "–" + t.y2 : ""}</td><td>${t.o}</td><td>${t.c}</td>
-    <td>${t.l || "—"}</td><td title="${(t.t || "").replace(/"/g, "")}"><a class="tlink" href="table.html?t=${t.s}__${t.n}" target="_blank" rel="noopener">${t.t || "—"} ↗</a></td>
+    <td>${t.l || "—"}</td><td title="${(t.t || "").replace(/"/g, "")}"><a class="tlink" href="catalog.html#${t.s}__${t.n}" target="_blank" rel="noopener">${t.t || "—"} ↗</a></td>
     <td class="num">${t.nr}</td><td class="num">${t.nc}</td>
     <td class="${t.q && t.q.startsWith("完好") ? "qm qm-ok" : t.q && t.q.startsWith("已重建") ? "qm qm-fix" : "qm qm-warn"}"
         title="${t.q || ""}">${t.q ? (t.q.startsWith("完好") ? "完好" : t.q.startsWith("已重建") ? "已重建" : "存疑") : "—"}</td>

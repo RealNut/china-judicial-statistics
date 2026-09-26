@@ -36,6 +36,8 @@
     buildAgencyChips();
     bind();
     render();
+    jumpToHash();
+    window.addEventListener("hashchange", jumpToHash);
   }
 
   function buildRail() {
@@ -138,6 +140,7 @@
   function card(t) {
     const d = document.createElement("details");
     d.className = "tcard";
+    d.id = t.id;            // 供主站“溯源”链接锚定（catalog.html#<id>）
     const sev = severityMax(t.anomalies);
     const sevTxt = sev ? SEV_TXT[sev] : "";
     const court = t.in_court_dataset;
@@ -174,7 +177,19 @@
     d.addEventListener("toggle", () => {
       if (d.open) buildBody(d, t);
     });
+    d._t = t;
     return d;
+  }
+
+  // 支持从主站“溯源”链接直达：catalog.html#<id> 自动展开并滚动到该表
+  function jumpToHash() {
+    const id = decodeURIComponent(location.hash.replace(/^#/, ""));
+    if (!id) return;
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.open = true;
+    buildBody(el, el._t);
+    requestAnimationFrame(() => el.scrollIntoView({ block: "center" }));
   }
 
   function buildBody(d, t) {
